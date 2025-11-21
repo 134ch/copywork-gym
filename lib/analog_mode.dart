@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'challenge_model.dart';
 import 'data.dart';
 import 'storage_service.dart';
@@ -16,7 +17,7 @@ class AnalogModeScreen extends StatefulWidget {
 }
 
 class _AnalogModeScreenState extends State<AnalogModeScreen> {
-  List<XFile> _currentSessionImages = [];
+  final List<XFile> _currentSessionImages = [];
   List<List<String>> _pastSessions = [];
   final ImagePicker _picker = ImagePicker();
 
@@ -193,8 +194,7 @@ class _AnalogModeScreenState extends State<AnalogModeScreen> {
                       ),
                       child: Text(
                         widget.challenge.content,
-                        style: const TextStyle(
-                          fontFamily: 'Georgia', // Serif font for analog feel
+                        style: GoogleFonts.merriweather(
                           fontSize: 18,
                           height: 1.6,
                           color: Colors.black87,
@@ -343,7 +343,7 @@ class _AnalogModeScreenState extends State<AnalogModeScreen> {
                     ? _completeChallenge
                     : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green.shade700,
+                  backgroundColor: const Color(0xFF2C2C2C),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   textStyle: const TextStyle(

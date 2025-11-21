@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'challenge_model.dart';
 import 'data.dart';
 import 'storage_service.dart';
@@ -52,7 +53,7 @@ class _DigitalModeScreenState extends State<DigitalModeScreen> {
 
       spans.add(TextSpan(
         text: targetText[i],
-        style: TextStyle(
+        style: GoogleFonts.merriweather(
           color: textColor,
           fontSize: 18,
           height: 1.5,
@@ -96,7 +97,7 @@ class _DigitalModeScreenState extends State<DigitalModeScreen> {
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16.0),
-              color: Colors.grey.shade100,
+              color: const Color(0xFFFDFBF7),
               child: SingleChildScrollView(
                 controller: _scrollController,
                 child: _buildHighlightedText(),
@@ -117,6 +118,10 @@ class _DigitalModeScreenState extends State<DigitalModeScreen> {
                       maxLines: null,
                       expands: true,
                       enableInteractiveSelection: false, // Disable paste
+                      style: GoogleFonts.merriweather(
+                        fontSize: 18,
+                        height: 1.5,
+                      ),
                       decoration: const InputDecoration(
                         hintText: 'Type the text exactly as shown above...',
                         border: OutlineInputBorder(),
@@ -130,7 +135,8 @@ class _DigitalModeScreenState extends State<DigitalModeScreen> {
                     child: ElevatedButton(
                       onPressed: _isMatch ? _finishChallenge : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _isMatch ? Colors.blue : Colors.grey,
+                        backgroundColor:
+                            _isMatch ? const Color(0xFF2C2C2C) : Colors.grey,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),

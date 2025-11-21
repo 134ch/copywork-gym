@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'challenge_model.dart';
 import 'data.dart';
 import 'digital_mode.dart';
@@ -16,11 +17,34 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const paperColor = Color(0xFFFDFBF7);
+    const inkColor = Color(0xFF2C2C2C);
+
     return MaterialApp(
       title: 'Copywork Gym',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
         useMaterial3: true,
+        scaffoldBackgroundColor: paperColor,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: inkColor,
+          primary: inkColor,
+          surface: paperColor,
+        ),
+        cardTheme: const CardTheme(
+          color: Colors.white,
+          elevation: 2,
+          surfaceTintColor: Colors.white, // Avoid tint on M3
+        ),
+        textTheme: GoogleFonts.merriweatherTextTheme().apply(
+          bodyColor: inkColor,
+          displayColor: inkColor,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: paperColor,
+          elevation: 0,
+          foregroundColor: inkColor,
+          centerTitle: true,
+        ),
       ),
       home: const HomeScreen(),
     );
@@ -42,28 +66,43 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Copywork Gym'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('Assets/logo.png', height: 32),
+            const SizedBox(width: 12),
+            const Text('Copywork Gym'),
+          ],
+        ),
         centerTitle: true,
       ),
       body: Column(
         children: [
           // Total Exp Section
           Container(
-            padding: const EdgeInsets.all(16.0),
-            color: Colors.blue.shade50,
+            padding: const EdgeInsets.all(24.0),
             width: double.infinity,
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: Colors.black12)),
+            ),
             child: Column(
               children: [
-                const Text(
-                  'Total Exp',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                Text(
+                  'Total Experience',
+                  style: GoogleFonts.merriweather(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                    color: Colors.black54,
+                  ),
                 ),
+                const SizedBox(height: 8),
                 Text(
                   totalExp.toStringAsFixed(1), // Support decimals
                   style: const TextStyle(
-                    fontSize: 32,
+                    fontSize: 48,
                     fontWeight: FontWeight.bold,
-                    color: Colors.blue,
+                    color: Color(0xFF2C2C2C),
                   ),
                 ),
               ],
@@ -139,16 +178,16 @@ class ChallengeTile extends StatelessWidget {
                           TooltipTriggerMode.tap, // For mobile long-press/tap
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                            horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.blue.shade100,
-                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         child: Text(
                           'Reps: ${challenge.totalReps}',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.blue.shade900,
+                            color: Colors.grey.shade800,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -159,6 +198,10 @@ class ChallengeTile extends StatelessWidget {
                 if (challenge.isCompleted)
                   const Icon(Icons.check_circle, color: Colors.green, size: 32),
                 ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2C2C2C),
+                    foregroundColor: Colors.white,
+                  ),
                   onPressed: () async {
                     // Show Mode Selection Dialog
                     final mode = await showDialog<String>(
