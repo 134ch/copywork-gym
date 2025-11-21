@@ -16,8 +16,8 @@ class AnalogModeScreen extends StatefulWidget {
 }
 
 class _AnalogModeScreenState extends State<AnalogModeScreen> {
-  XFile? _evidenceImage;
-  List<String> _pastImages = [];
+  List<XFile> _currentSessionImages = [];
+  List<List<String>> _pastSessions = [];
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -27,22 +27,13 @@ class _AnalogModeScreenState extends State<AnalogModeScreen> {
   }
 
   Future<void> _loadInitialData() async {
-    // Load past images
-    final history = await StorageService.loadImagePaths(widget.challenge.dayId);
-
-    // Load current evidence if exists (only for non-web for now)
-    XFile? currentEvidence;
-    if (!kIsWeb && widget.challenge.evidenceImagePath != null) {
-      final file = File(widget.challenge.evidenceImagePath!);
-      if (file.existsSync()) {
-        currentEvidence = XFile(widget.challenge.evidenceImagePath!);
-      }
-    }
+    // Load past session history
+    final history =
+        await StorageService.loadSessionHistory(widget.challenge.dayId);
 
     if (mounted) {
       setState(() {
-        _pastImages = history;
-        _evidenceImage = currentEvidence;
+        _pastSessions = history;
       });
     }
   }
@@ -52,11 +43,10 @@ class _AnalogModeScreenState extends State<AnalogModeScreen> {
       final XFile? pickedFile = await _picker.pickImage(source: source);
       if (pickedFile != null) {
         setState(() {
-          _evidenceImage = pickedFile;
+          _currentSessionImages.add(pickedFile);
         });
       }
     } catch (e) {
-      // Handle error (e.g., permission denied)
       debugPrint('Error picking image: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -66,14 +56,14 @@ class _AnalogModeScreenState extends State<AnalogModeScreen> {
     }
   }
 
-  void _removeImage() {
+  void _removeImage(int index) {
     setState(() {
-      _evidenceImage = null;
+      _currentSessionImages.removeAt(index);
     });
   }
 
   void _completeChallenge() async {
-    if (_evidenceImage == null) return;
+    if (_currentSessionImages.isEmpty) return;
 
     // Show confirmation dialog
     final bool? confirm = await showDialog<bool>(
@@ -96,18 +86,23 @@ class _AnalogModeScreenState extends State<AnalogModeScreen> {
     );
 
     if (confirm == true) {
+      // Create a list of paths for the current session
+      final currentPaths =
+          _currentSessionImages.map((img) => img.path).toList();
+
       // Update history
-      final newHistory = List<String>.from(_pastImages);
-      newHistory.add(_evidenceImage!.path);
-      await StorageService.saveImagePaths(widget.challenge.dayId, newHistory);
+      final newHistory = List<List<String>>.from(_pastSessions);
+      newHistory.add(currentPaths);
+      await StorageService.saveSessionHistory(
+          widget.challenge.dayId, newHistory);
 
       // Update the challenge in the global list
       final index =
           challenges.indexWhere((c) => c.dayId == widget.challenge.dayId);
       if (index != -1) {
-        // Pass the image path to completeManual
+        // Pass the first image path as the thumbnail/evidence path
         challenges[index] =
-            widget.challenge.completeManual(evidencePath: _evidenceImage?.path);
+            widget.challenge.completeManual(evidencePath: currentPaths.first);
         // Save progress
         await StorageService.saveProgress(challenges[index]);
       }
@@ -116,6 +111,53 @@ class _AnalogModeScreenState extends State<AnalogModeScreen> {
             context, true); // Return true to indicate completion/update
       }
     }
+  }
+
+  Widget _buildImageThumbnail(String path, {VoidCallback? onRemove}) {
+    return Stack(
+      children: [
+        Container(
+          height: 120,
+          width: 120,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: kIsWeb
+                ? Image.network(
+                    path,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Center(child: Icon(Icons.broken_image)),
+                  )
+                : Image.file(
+                    File(path),
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Center(child: Icon(Icons.broken_image)),
+                  ),
+          ),
+        ),
+        if (onRemove != null)
+          Positioned(
+            top: 4,
+            right: 4,
+            child: GestureDetector(
+              onTap: onRemove,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, size: 16, color: Colors.white),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   @override
@@ -132,6 +174,7 @@ class _AnalogModeScreenState extends State<AnalogModeScreen> {
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
                       width: double.infinity,
@@ -160,18 +203,56 @@ class _AnalogModeScreenState extends State<AnalogModeScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Evidence Section
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        "Evidence (Required)",
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
+                    // Current Session Evidence
+                    const Text(
+                      "Evidence (Required)",
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     const SizedBox(height: 12),
 
-                    if (_evidenceImage == null)
+                    // Horizontal list of current session images
+                    if (_currentSessionImages.isNotEmpty)
+                      SizedBox(
+                        height: 130,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _currentSessionImages.length +
+                              1, // +1 for Add button
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(width: 12),
+                          itemBuilder: (context, index) {
+                            if (index == _currentSessionImages.length) {
+                              // Add Page Button at the end
+                              return Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      onPressed: () =>
+                                          _pickImage(ImageSource.camera),
+                                      icon: const Icon(Icons.add_a_photo),
+                                      tooltip: "Add Page (Camera)",
+                                    ),
+                                    IconButton(
+                                      onPressed: () =>
+                                          _pickImage(ImageSource.gallery),
+                                      icon:
+                                          const Icon(Icons.add_photo_alternate),
+                                      tooltip: "Add Page (Gallery)",
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                            return _buildImageThumbnail(
+                              _currentSessionImages[index].path,
+                              onRemove: () => _removeImage(index),
+                            );
+                          },
+                        ),
+                      )
+                    else
                       Row(
                         children: [
                           Expanded(
@@ -198,106 +279,53 @@ class _AnalogModeScreenState extends State<AnalogModeScreen> {
                             ),
                           ),
                         ],
-                      )
-                    else
-                      Column(
-                        children: [
-                          Container(
-                            height: 200,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: kIsWeb
-                                  ? Image.network(
-                                      _evidenceImage!.path,
-                                      fit: BoxFit.cover,
-                                    )
-                                  : Image.file(
-                                      File(_evidenceImage!.path),
-                                      fit: BoxFit.cover,
-                                    ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          TextButton.icon(
-                            onPressed: _removeImage,
-                            icon: const Icon(Icons.refresh, color: Colors.red),
-                            label: const Text("Remove / Retake",
-                                style: TextStyle(color: Colors.red)),
-                          ),
-                        ],
                       ),
 
                     // Past Attempts Section
-                    if (_pastImages.isNotEmpty) ...[
+                    if (_pastSessions.isNotEmpty) ...[
                       const SizedBox(height: 24),
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          "Past Attempts",
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
+                      const Text(
+                        "Past Attempts",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const SizedBox(height: 12),
-                      SizedBox(
-                        height: 150,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _pastImages.length,
-                          separatorBuilder: (context, index) =>
-                              const SizedBox(width: 12),
-                          itemBuilder: (context, index) {
-                            final path = _pastImages[index];
-                            return Column(
-                              children: [
-                                Container(
-                                  height: 120,
-                                  width: 120,
-                                  decoration: BoxDecoration(
-                                    border:
-                                        Border.all(color: Colors.grey.shade300),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: kIsWeb
-                                        ? Image.network(
-                                            path,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error,
-                                                    stackTrace) =>
-                                                const Center(
-                                                    child: Icon(
-                                                        Icons.broken_image)),
-                                          )
-                                        : Image.file(
-                                            File(path),
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error,
-                                                    stackTrace) =>
-                                                const Center(
-                                                    child: Icon(
-                                                        Icons.broken_image)),
-                                          ),
-                                  ),
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _pastSessions.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 16),
+                        itemBuilder: (context, index) {
+                          final sessionImages = _pastSessions[index];
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Attempt #${index + 1} (${sessionImages.length} Pages)",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey.shade700,
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  "Attempt #${index + 1}",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
-                                  ),
+                              ),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                height: 120,
+                                child: ListView.separated(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: sessionImages.length,
+                                  separatorBuilder: (context, i) =>
+                                      const SizedBox(width: 8),
+                                  itemBuilder: (context, i) {
+                                    return _buildImageThumbnail(
+                                        sessionImages[i]);
+                                  },
                                 ),
-                              ],
-                            );
-                          },
-                        ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ],
@@ -311,7 +339,9 @@ class _AnalogModeScreenState extends State<AnalogModeScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _evidenceImage != null ? _completeChallenge : null,
+                onPressed: _currentSessionImages.isNotEmpty
+                    ? _completeChallenge
+                    : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green.shade700,
                   foregroundColor: Colors.white,

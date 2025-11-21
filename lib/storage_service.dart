@@ -49,15 +49,27 @@ class StorageService {
     }
   }
 
-  static Future<void> saveImagePaths(int dayId, List<String> paths) async {
+  static Future<void> saveSessionHistory(
+      int dayId, List<List<String>> history) async {
     final prefs = await SharedPreferences.getInstance();
-    final key = 'images_$dayId';
-    await prefs.setStringList(key, paths);
+    final key = 'history_$dayId';
+    await prefs.setString(key, json.encode(history));
   }
 
-  static Future<List<String>> loadImagePaths(int dayId) async {
+  static Future<List<List<String>>> loadSessionHistory(int dayId) async {
     final prefs = await SharedPreferences.getInstance();
-    final key = 'images_$dayId';
-    return prefs.getStringList(key) ?? [];
+    final key = 'history_$dayId';
+    final String? jsonString = prefs.getString(key);
+
+    if (jsonString == null) {
+      return [];
+    }
+
+    try {
+      final List<dynamic> decoded = json.decode(jsonString);
+      return decoded.map((session) => List<String>.from(session)).toList();
+    } catch (e) {
+      return [];
+    }
   }
 }
